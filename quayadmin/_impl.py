@@ -24,10 +24,10 @@ class Registry(object):
     token = attr.ib(default=None)
 
     def _request(self, method, path, headers=None, **kwargs):
-        url = '%s/%s' % (self.endpoint, path)
-        headers = headers if headers else {}
+        url = f'{self.endpoint}/{path}'
+        headers = headers or {}
         if self.token:
-            headers['Authorization'] = 'Bearer %s' % (self.token,)
+            headers['Authorization'] = f'Bearer {self.token}'
         return treq.request(method, url, headers=headers, **kwargs).addCallback(treq.json_content)
 
     @inlineCallbacks
@@ -43,13 +43,13 @@ class Registry(object):
     @inlineCallbacks
     def get_user_permissions(self, repo_spec):
         """Get the user permissions for a repository."""
-        path = 'repository/%s/permissions/user/' % (repo_spec,)
+        path = f'repository/{repo_spec}/permissions/user/'
         perms = yield self._request('GET', path)
         return map(UserPermission.from_dict, perms['permissions'].values())
 
     @inlineCallbacks
     def get_team_permissions(self, repo_spec):
-        path = 'repository/%s/permissions/team/' % (repo_spec,)
+        path = f'repository/{repo_spec}/permissions/team/'
         perms = yield self._request('GET', path)
         return map(TeamPermission.from_dict, perms['permissions'].values())
 
@@ -67,7 +67,7 @@ class Repository(object):
 
     @property
     def spec(self):
-        return '%s/%s' % (self.namespace, self.name)
+        return f'{self.namespace}/{self.name}'
 
     @classmethod
     def from_dict(cls, data):
@@ -167,9 +167,9 @@ class AllRepositoryPermissions(object):
     def find_repos_with_external_users(self):
         repos = {}
         for perm in self._repository_permissions:
-            external_users = [user for user in perm.user_permissions
-                              if not user.is_org_member]
-            if external_users:
+            if external_users := [
+                user for user in perm.user_permissions if not user.is_org_member
+            ]:
                 repos[perm.repository] = external_users
         return repos
 
@@ -216,11 +216,7 @@ def main(reactor, *args):
     for repo, users in external.items():
         print(repo.spec)
         for user in users:
-            print('- %s [%s]%s' % (
-                user.name,
-                user.role,
-                ' (robot)' if user.is_robot else '',
-            ))
+            print(f"- {user.name} [{user.role}]{' (robot)' if user.is_robot else ''}")
         print()
 
     if config.dump_state:
